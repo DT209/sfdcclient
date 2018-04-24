@@ -1,0 +1,8 @@
+
+/sfdcclient.iml
+/.idea/
+/.gradle
+/build/**
+/sfdcclient.ipr
+/sfdcclient.iws
+
