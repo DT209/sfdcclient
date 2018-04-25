@@ -4,7 +4,8 @@ version '0.1'
 apply plugin: 'java'
 apply plugin: "eclipse"
 apply plugin: "idea"
-apply plugin: 'com.bmuschko.nexus'
+apply plugin: 'maven'
+apply plugin: 'signing'
 
 sourceCompatibility = 1.8
 
@@ -20,49 +21,64 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
 }
 
-buildscript {
-    repositories {
-        jcenter()
-    }
-    dependencies {
-        classpath 'com.bmuschko:gradle-nexus-plugin:2.3.1'
-    }
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
 }
 
-modifyPom {
-    project {
-        name 'Simple Salesforce Client'
-        description 'Simple Salesforce Client that allows for CRUD operations on Salesforce objects'
-        url 'https://github.com/DT209/sfdcclient/'
-        inceptionYear '2018'
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
 
-        scm {
-            url 'https://github.com/DT209/sfdcclient/'
-            connection 'scm:https://github.com/DT209/sfdcclient.git'
-            developerConnection 'scm:git://git@github.com:DT209/sfdcclient.git'
-        }
+artifacts {
+    archives javadocJar, sourcesJar
+}
 
-        licenses {
-            license {
-                name 'The Apache Software License, Version 2.0'
-                url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                distribution 'repo'
+signing {
+    sign configurations.archives
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                authentication(userName: nexusUsername, password: nexusPassword)
+            }
+
+            snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                authentication(userName: nexusUsername, password: nexusPassword)
+            }
+
+            pom.project {
+                name 'Simple Salesforce Client'
+                packaging 'jar'
+                description 'Simple Salesforce Client that allows for CRUD operations on Salesforce objects'
+                url 'https://github.com/DT209/sfdcclient/'
+
+                scm {
+                    url 'https://github.com/DT209/sfdcclient/tree/maste'
+                    connection 'scm:https://github.com/DT209/sfdcclient.git'
+                    developerConnection 'scm:git://github.com/DT209/sfdcclient.git'
+                }
+
+                licenses {
+                    license {
+                        name 'The Apache License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id 'dt209'
+                        name 'David T'
+                        email 'david.javaarchitect@gmail.com'
+                    }
+                }
             }
         }
     }
 }
-
-extraArchive {
-    sources = true
-    tests = true
-    javadoc = true
-}
-
-nexus {
-    sign = true
-    repositoryUrl = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
-    snapshotRepositoryUrl = 'https://oss.sonatype.org/content/repositories/snapshots/'
-}
-
-
-
