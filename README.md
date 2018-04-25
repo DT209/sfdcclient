@@ -2,8 +2,19 @@
 This is the simplest possible SFDC client, it does proper authentication and allows for basic CRUD operations.
 
 ## Building
+Build:
 ```
   ./gradlew build -x test
+```
+
+Assemble all artifacts:
+```
+  ./gradle assemble
+```
+
+List all gradle tasks available:
+```
+gradle tasks
 ```
 
 ## Testing

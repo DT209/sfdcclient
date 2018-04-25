@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 import java.util.TimeZone;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -86,6 +87,7 @@ public class SfdcClient {
      * @param soapPath See above constant as a default
      * @param username Username with enabled API access
      * @param password Password for username with enabled API access
+     * @param securityToken Security Token for username with enabled API access
      */
     public SfdcClient(String host, String soapPath, String username, String password, String securityToken) {
         loginUrl = new Builder()
@@ -99,7 +101,11 @@ public class SfdcClient {
         this.soapPath = soapPath;
     }
 
-    protected void login() throws IOException, ParserConfigurationException, SAXException {
+    /**
+     * Called to do a login when needed. Note that logins are "lazy" and are only called when existing tokens expire
+     * or if
+     */
+    protected void login() throws IOException {
         String loginXml = "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n"
                 + "<env:Envelope xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"\n"
                 + "    xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n"
@@ -122,7 +128,10 @@ public class SfdcClient {
 
         Response response = new OkHttpClient().newCall(request).execute();
         String responseBody = response.body().string();
-        logger.fine("Login response body: " + responseBody);
+        if(logger.isLoggable(Level.FINEST)) {
+            logger.finest("Login response body: " + responseBody);
+        }
+
         NodeList nList = getNodeList(new ByteArrayInputStream(responseBody.getBytes()), "result", loginXml);
 
         for (int temp = 0; temp < nList.getLength(); temp++) {
@@ -144,15 +153,15 @@ public class SfdcClient {
     }
 
     /**
-     * @param objectName
-     * @param fields
+     * @param sfdcObjectType Salesforce Object Type (such as Account or Contact etc.)
+     * @param fields Salesforce Object fields to return
      * @param condition The WHERE clause without the word WHERE. Please escape the clause if needed. (Exapmle code: StringEscapeUtils.escapeXml10(fieldValueToEscape)))
      * @see <a href="https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_select_examples.htm#!">https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_select_examples.htm#!</a>
      */
-    public List<Map<String, String>> selectFields(String objectName, Collection<String> fields, String condition) throws IOException {
+    public List<Map<String, String>> selectFields(String sfdcObjectType, Collection<String> fields, String condition) throws IOException {
         final StringJoiner joiner = new StringJoiner(",");
         fields.forEach(field -> joiner.add(field));
-        String queryString = "SELECT " +joiner.toString()+ " FROM " +objectName+ " WHERE " + condition;
+        String queryString = "SELECT " +joiner.toString()+ " FROM " +sfdcObjectType+ " WHERE " + condition;
         return query(queryString);
     }
 
@@ -190,6 +199,10 @@ public class SfdcClient {
         return result;
     }
 
+    /**
+     * @param sfdcObjectType Salesforce Object Type (such as Account or Contact etc.)
+     * @param sfdcObject an object with field names that exactly match those in Sales Force and with values that are in a valid format for the Saleseforce object that is being updated.
+     */
     public void update(final String sfdcObjectType, final Map<String,Object> sfdcObject) throws IOException {
 
         if (!sfdcObject.containsKey("id")) {
@@ -216,9 +229,9 @@ public class SfdcClient {
 
 
     /**
-     * Insert or Update the specified sfdcObject into the Salesforce.
+     * Insert or Update sfdcObjectType (inserts if not found, updates if externalIdFieldName matches an existing one)
      * @param externalIdFieldName Used to identify the primary key field for the object, can be any field marked unique for the Salesforce Object Type
-     * @param sfdcObjectType Salesforce Type
+     * @param sfdcObjectType Salesforce Object Type (such as Account or Contact etc.)
      * @param sfdcObject an object with field names that exactly match those in Sales Force and with values that are in a valid format for the Saleseforce object that is being upserted into.
      * @return ID of object updated or inserted.
      */
@@ -238,7 +251,7 @@ public class SfdcClient {
     }
 
     /**
-     * @param id The ID of the sfdcObject to be delted
+     * @param id The ID of the sfdcObject to be deleted
      */
     public boolean delete(String id) throws IOException {
         String xml = "<n1:delete><n1:ids>"+ id+ "</n1:ids></n1:delete>";
@@ -246,7 +259,6 @@ public class SfdcClient {
     }
 
     /**
-     * @param date
      * @return Date formatted per Salesforce rules
      * @see <a href="https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_select_dateformats.htm">https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_select_dateformats.htm</a>
      */
@@ -263,6 +275,7 @@ public class SfdcClient {
     /**
      * @param date in "yyyy-MM-dd'T'HH:mm:ssZZZ" format
      * @see <a href="https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_select_dateformats.htm">https://developer.salesforce.com/docs/atlas.en-us.soql_sosl.meta/soql_sosl/sforce_api_calls_soql_select_dateformats.htm</a>
+     * @throws IOException if there was an issue parsing the date string provided
      */
     public static Date fromSfdcFormat(String date) throws IOException {
         if (date == null) return null;
@@ -276,16 +289,34 @@ public class SfdcClient {
         }
     }
 
-    protected NodeList runRequest(String request, String resultTagName) throws IOException {
+    /**
+     * @param request partial request XML (just the inner part)
+     * @param resultTagName name of tag to extract and return as a NodeList
+     */
+    protected NodeList runRequest(String request, String resultTagName)
+            throws IOException {
         if (sessionId == null) {
-            try {
-                login();
-            } catch (ParserConfigurationException | SAXException e) {
-                throw new IOException("Failed to Login to SFDC " + e.getMessage(), e);
-            }
+            login();
         }
         String xml = getFullXml(request);
+        if(logger.isLoggable(Level.FINEST)) {
+            logger.finest("Request body: " + xml);
+        }
+        String responseBody = doPost(xml);
 
+        if (responseBody.contains("INVALID_SESSION")) {
+            // Login, then try again.
+            login();
+            responseBody = doPost(getFullXml(request));
+        }
+        if(logger.isLoggable(Level.FINER)) {
+            logger.finer("Response body: " + responseBody);
+        }
+
+        return getNodeList(new ByteArrayInputStream(responseBody.getBytes()), resultTagName, request);
+    }
+
+    private String doPost(String xml) throws IOException {
         RequestBody body = RequestBody.create(MEDIA_TYPE, xml);
 
         Request post = new Request.Builder()
@@ -296,15 +327,13 @@ public class SfdcClient {
 
         Response response = new OkHttpClient().newCall(post).execute();
 
-        String responseBody = response.body().string();
-        logger.fine("Request response body: " + responseBody);
-        try {
-            return getNodeList(new ByteArrayInputStream(responseBody.getBytes()), resultTagName, request);
-        } catch (ParserConfigurationException | SAXException e) {
-            throw new IOException("Could not run request " + request +" with error message: " + e.getMessage(),e);
-        }
+        return response.body().string();
     }
 
+    /**
+     * @param request partial request XML (just the inner part)
+     * @return full XML request to send to Salesforce
+     */
     protected String getFullXml(String request) {
         return "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n"
                     + "<env:Envelope xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"\n"
@@ -330,10 +359,16 @@ public class SfdcClient {
         return eElement.getElementsByTagName(tagName).item(0).getTextContent();
     }
 
-    private NodeList getNodeList(InputStream inputStream, String tagToGet, String request) throws ParserConfigurationException, SAXException, IOException {
+    private NodeList getNodeList(InputStream inputStream, String tagToGet, String request) throws IOException {
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-        Document doc = dBuilder.parse(inputStream);
+        Document doc;
+        try {
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            doc = dBuilder.parse(inputStream);
+        } catch (ParserConfigurationException | SAXException e) {
+            throw new IOException("Salesforce returned unparsable content or parser not configured properly. Could not parse response " +e.getMessage() + " with request " + request, e);
+        }
+
         doc.getDocumentElement().normalize();
 
         NodeList faultStrings = doc.getElementsByTagName("faultstring");
