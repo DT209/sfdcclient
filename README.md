@@ -31,7 +31,13 @@ Reduce number of dependencies
 // to use domains and want to use a different host.  The default
 // HOSTS are login.salesforce.coma and test.salesforce.com,
 // the default SOAP_PATH is (or was at some point) /services/Soap/u/42.0)
-SfdcClient sfdcClient = new SfdcClient(SfdcClient.SANDBOX_HOST, SfdcClient.SOAP_PATH, salesForceUsername, salesForcePassword, salesForceSecurityToken);
+SfdcClient sfdcClient = new SfdcClient(
+        SfdcClient.SANDBOX_HOST,
+        SfdcClient.SOAP_PATH,
+        salesForceUsername,
+        salesForcePassword,
+        salesForceSecurityToken
+    );
 
 // Get list of Account objects (any SFDC object will work):
 List<Map<String, String>> queryResult = sfdcClient.query("SELECT Id, Name FROM Account");
