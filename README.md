@@ -26,9 +26,11 @@ Reduce number of dependencies
 ## Examples:
 
 ```java
-// Create client (Note: that the constants are just defaults, feel free to find the best suited SOAP Path for your Org,
-// similarly if you decide to use domains and want to use a different host.
-// The default HOSTS are login.salesforce.coma and test.salesforce.com, the default SOAP_PATH is (or was at some point) /services/Soap/u/42.0)
+// Create client (Note: that the constants are just defaults, feel free
+// to find the best suited SOAP Path for your Org similarly if you decide
+// to use domains and want to use a different host.  The default
+// HOSTS are login.salesforce.coma and test.salesforce.com,
+// the default SOAP_PATH is (or was at some point) /services/Soap/u/42.0)
 SfdcClient sfdcClient = new SfdcClient(SfdcClient.SANDBOX_HOST, SfdcClient.SOAP_PATH, salesForceUsername, salesForcePassword, salesForceSecurityToken);
 
 // Get list of Account objects (any SFDC object will work):
