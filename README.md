@@ -4,18 +4,20 @@ This is the simplest possible SFDC client, it does proper authentication and all
 ## Building
 Build:
 ```
-  ./gradlew build -x test
+./gradlew build -x test
 ```
 
 Assemble all artifacts:
 ```
-  ./gradle assemble
+./gradlew assemble
 ```
 
 List all gradle tasks available:
 ```
-gradle tasks
+./gradlew tasks
 ```
+## Including in your project:
+Please see [Maven Central]()
 
 ## Testing
 Before running the tests you **must** have a valid Salesforce API Enabled username/account.
@@ -35,7 +37,6 @@ Choosing to use simple highly maintainable code rather than being fancy
 Reduce number of dependencies
 
 ## Examples:
-
 ```java
 // Create client (Note: that the constants are just defaults, feel free
 // to find the best suited SOAP Path for your Org similarly if you decide
@@ -75,6 +76,7 @@ sfdcClient.delete(id);
 ```
 
 ### Logging
+Uses Java's internal logging framework as to minimize dependencies.
 
 ```java
 Logger logger = Logger.getLogger(sfdcClient.getClass().getName());
@@ -85,5 +87,16 @@ logger.setLevel(Level.ALL);
 ### Depenedencies
 Currently this project only has three dependencies (`okhttp`, `commons-lang3`
 makes use of `ClassUtils`, `commons-text` makes use of `StringEscapeUtils`),
-and their version isn't super important, therefore if you need to exclude any,
-as long as they basically funciton the same there should be no issues.
+and their version isn't super important so feel free to replace them as long as
+they basically funciton the same there should be no issues.
+
+### Releases
+Bump up the release number then issue:
+```
+./gradlew clean uploadArchives closeAndReleaseRepository
+```
+
+#### Background on releases
+- Instructions: http://central.sonatype.org/pages/gradle.html
+- Maven Repo: https://oss.sonatype.org
+- Ticket for access: https://issues.sonatype.org/browse/OSSRH-39366
