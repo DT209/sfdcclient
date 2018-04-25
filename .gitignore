@@ -5,4 +5,4 @@
 /build/**
 /sfdcclient.ipr
 /sfdcclient.iws
-
+/out/
