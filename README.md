@@ -17,7 +17,7 @@ List all gradle tasks available:
 ./gradlew tasks
 ```
 ## Including in your project:
-Please see [Maven Central]()
+Please see [Maven Central](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.github.dt209%22%20AND%20a%3A%22sfdcclient%22)
 
 ## Testing
 Before running the tests you **must** have a valid Salesforce API Enabled username/account.
